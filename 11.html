@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZYNAPSE CLI - Web Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d30 50%, #1a1a1a 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px;
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border-radius: 24px;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #ffffff 0%, #b0b0b0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -2px;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .header p {
+            font-size: 1.25rem;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        /* Main Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        /* Panel Styles */
+        .panel {
+            border-radius: 20px;
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .panel-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .panel-header .icon {
+            font-size: 1.25rem;
+            opacity: 0.8;
+        }
+
+        /* Device Panel */
+        .devices-container {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding-right: 10px;
+        }
+
+        .devices-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .devices-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+
+        .devices-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .device-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .device-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+            transition: left 0.5s;
+        }
+
+        .device-card:hover::before {
+            left: 100%;
+        }
+
+        .device-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .device-card.selected {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 
+                0 10px 40px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .device-id {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #ffffff;
+        }
+
+        .device-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 0 6px currentColor;
+        }
+
+        .status-online { color: #10b981; }
+        .status-processing { color: #f59e0b; animation: pulse 1s infinite; }
+        .status-offline { color: #6b7280; }
+        .status-error { color: #ef4444; animation: pulse 1s infinite; }
+
+        .device-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        /* Command Panel */
+        .command-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .command-input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .command-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+
+        .command-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Quick Commands */
+        .quick-commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .quick-command {
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .quick-command:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Results Panel */
+        .results-container {
+            grid-column: 1 / -1;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .results-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .results-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .results-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .result-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .result-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--border-color);
+        }
+
+        .result-item.success { --border-color: #10b981; }
+        .result-item.error { --border-color: #ef4444; }
+        .result-item.processing { --border-color: #f59e0b; }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .result-command {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .result-meta {
+            font-size: 0.85rem;
+            opacity: 0.6;
+            display: flex;
+            gap: 16px;
+        }
+
+        .result-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .result-status.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .result-status.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .result-status.processing {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .result-content {
+            margin-top: 16px;
+        }
+
+        .code-block, .output-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 12px 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .code-block {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .output-block {
+            border-left: 4px solid #10b981;
+        }
+
+        /* Statistics */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        }
+
+        .stat-value {
+            display: block;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            font-weight: 500;
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top-color: #ffffff;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: #ffffff;
+            font-weight: 500;
+            z-index: 1000;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform: translateX(400px);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-width: 300px;
+        }
+
+        .notification.success {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 10px 40px rgba(16, 185, 129, 0.1);
+        }
+
+        .notification.error {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+            box-shadow: 0 10px 40px rgba(239, 68, 68, 0.1);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            opacity: 0.5;
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .quick-commands {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Hover Effects for Better Interaction */
+        .interactive:hover {
+            transform: translateY(-1px);
+            transition: transform 0.2s ease;
+        }
+
+        /* Focus States */
+        .btn:focus,
+        .command-input:focus,
+        .device-card:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.3);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header glass">
+            <div class="header-content">
+                <h1>ZYNAPSE</h1>
+                <p>Advanced AI-Powered PowerShell Controller</p>
+                <div class="status-bar">
+                    <div class="status-item">
+                        <div class="status-dot"></div>
+                        <span>Web Interface Active</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-dot" style="background: #3b82f6; box-shadow: 0 0 10px #3b82f6;"></div>
+                        <span>Firebase Connected</span>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-dot" style="background: #8b5cf6; box-shadow: 0 0 10px #8b5cf6;"></div>
+                        <span>AI Engine Ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="main-grid">
+            <!-- Device Panel -->
+            <div class="panel glass">
+                <div class="panel-header">
+                    <span class="icon">🖥️</span>
+                    <h2>Connected Devices</h2>
+                </div>
+                
+                <div class="devices-container" id="devicesContainer">
+                    <div class="empty-state">
+                        <div class="loading"></div>
+                        <p>Loading devices...</p>
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-primary interactive" onclick="refreshDevices()">
+                        🔄 Refresh Devices
+                    </button>
+                </div>
+            </div>
+
+            <!-- Command Panel -->
+            <div class="panel glass">
+                <div class="panel-header">
+                    <span class="icon">⚡</span>
+                    <h2>Command Center</h2>
+                </div>
+                
+                <div class="command-section">
+                    <div class="input-group">
+                        <label class="input-label" for="commandInput">Natural Language Command</label>
+                        <input 
+                            type="text" 
+                            id="commandInput" 
+                            class="command-input" 
+                            placeholder="e.g., list files, open calculator, show system info..."
+                            onkeypress="handleKeyPress(event)"
+                        >
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn btn-primary interactive" onclick="sendCommand()" id="sendBtn">
+                            📤 Send Command
+                        </button>
+                        <button class="btn btn-danger interactive" onclick="emergencyStop()" id="stopBtn">
+                            🛑 Emergency Stop
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Commands -->
+                <div class="panel-header" style="margin-top: 30px;">
+                    <span class="icon">⚡</span>
+                    <h2>Quick Commands</h2>
+                </div>
+                
+                <div class="quick-commands">
+                    <div class="quick-command interactive" onclick="setCommand('list files in current directory')">
+                        📁 List Files
+                    </div>
+                    <div class="quick-command interactive" onclick="setCommand('show system information')">
+                        💻 System Info
+                    </div>
+                    <div class="quick-command interactive" onclick="setCommand('check memory usage')">
+                        🧠 Memory Usage
+                    </div>
+                    <div class="quick-command interactive" onclick="setCommand('open calculator')">
+                        🔢 Calculator
+                    </div>
+                    <div class="quick-command interactive" onclick="setCommand('show running processes')">
+                        ⚙️ Processes
+                    </div>
+                    <div class="quick-command interactive" onclick="setCommand('ping google.com')">
+                        🌐 Network Test
+                    </div>
+                    <div class="quick-command interactive" onclick="setCommand('get current date and time')">
+                        🕒 Date & Time
+                    </div>
+                    <div class="quick-command interactive" onclick="setCommand('show disk space usage')">
+                        💾 Disk Usage
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Panel -->
+        <div class="panel glass">
+            <div class="panel-header">
+                <span class="icon">📊</span>
+                <h2>Command Results</h2>
+            </div>
+            
+            <div class="results-container" id="resultsContainer">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <h3>No Commands Executed</h3>
+                    <p>Select a device and send your first command to see results here</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Panel -->
+        <div class="panel glass">
+            <div class="panel-header">
+                <span class="icon">📈</span>
+                <h2>Statistics</h2>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card glass">
+                    <span class="stat-value" id="totalDevices">0</span>
+                    <span class="stat-label">Total Devices</span>
+                </div>
+                <div class="stat-card glass">
+                    <span class="stat-value" id="activeDevices">0</span>
+                    <span class="stat-label">Online Devices</span>
+                </div>
+                <div class="stat-card glass">
+                    <span class="stat-value" id="totalCommands">0</span>
+                    <span class="stat-label">Commands Sent</span>
+                </div>
+                <div class="stat-card glass">
+                    <span class="stat-value" id="successRate">0%</span>
+                    <span class="stat-label">Success Rate</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
+
+    <script>
+        // Firebase Configuration - Replace with your config
+     // Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDkJN6q6K5d1i7rMvuFfDQ7P_fka-OqHVs",
+  authDomain: "zynapse-cli.firebaseapp.com",
+  databaseURL: "https://zynapse-cli-default-rtdb.firebaseio.com",
+  projectId: "zynapse-cli",
+  storageBucket: "zynapse-cli.firebasestorage.app",
+  messagingSenderId: "741989031176",
+  appId: "1:741989031176:web:fe62aefd8cb6b030c0a0bd"
+};
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const rtdb = firebase.database();
+
+        // Global State
+        let selectedDevice = null;
+        let devices = {};
+        let commandHistory = [];
+        let resultListeners = {};
+        let stats = {
+            totalDevices: 0,
+            activeDevices: 0,
+            totalCommands: 0,
+            successfulCommands: 0
+        };
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 ZYNAPSE Web Controller Initialized');
+            refreshDevices();
+            setupRealtimeListeners();
+            setInterval(updateStats, 5000);
+            
+            // Show welcome notification
+            showNotification('ZYNAPSE Web Controller Ready!', 'success');
+        });
+
+        // Device Management
+        async function refreshDevices() {
+            try {
+                console.log('📡 Fetching devices from Firebase...');
+                const devicesSnapshot = await db.collection('zynapse_devices').get();
+                devices = {};
+                
+                devicesSnapshot.forEach(doc => {
+                    devices[doc.id] = {
+                        id: doc.id,
+                        ...doc.data()
+                    };
+                });
+
+                displayDevices();
+                updateStats();
+                console.log(`✅ Found ${Object.keys(devices).length} devices`);
+                
+            } catch (error) {
+                console.error('❌ Error fetching devices:', error);
+                showNotification('Failed to fetch devices from Firebase', 'error');
+            }
+        }
+
+        function displayDevices() {
+            const container = document.getElementById('devicesContainer');
+            
+            if (Object.keys(devices).length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🖥️</div>
+                        <h3>No Devices Found</h3>
+                        <p>Start ZYNAPSE CLI on your devices to see them here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            
+            Object.entries(devices).forEach(([deviceId, deviceData]) => {
+                const deviceCard = document.createElement('div');
+                deviceCard.className = `device-card ${selectedDevice === deviceId ? 'selected' : ''}`;
+                deviceCard.onclick = () => selectDevice(deviceId);
+                
+                const statusClass = getStatusClass(deviceData.status);
+                const lastSeen = deviceData.timestamp ? 
+                    new Date(deviceData.timestamp).toLocaleString() : 'Unknown';
+                
+                deviceCard.innerHTML = `
+                    <div class="device-header">
+                        <div class="device-id">${deviceId}</div>
+                        <div class="device-status">
+                            <div class="status-indicator ${statusClass}"></div>
+                            <span>${(deviceData.status || 'offline').toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <div class="device-info">
+                        <div>Last Seen</div>
+                        <div>${lastSeen}</div>
+                        <div>Commands</div>
+                        <div>${deviceData.total_commands || 0}</div>
+                        <div>Safety Mode</div>
+                        <div>${deviceData.safety_mode ? 'ON' : 'OFF'}</div>
+                        <div>Uptime</div>
+                        <div>${Math.floor((deviceData.uptime_seconds || 0) / 60)}m</div>
+                    </div>
+                `;
+                
+                container.appendChild(deviceCard);
+            });
+        }
+
+        function getStatusClass(status) {
+            switch (status) {
+                case 'ready':
+                case 'completed_success':
+                    return 'status-online';
+                case 'processing':
+                    return 'status-processing';
+                case 'error':
+                case 'completed_error':
+                case 'blocked':
+                    return 'status-error';
+                case 'offline':
+                default:
+                    return 'status-offline';
+            }
+        }
+
+        function selectDevice(deviceId) {
+            selectedDevice = deviceId;
+            displayDevices();
+            setupResultListener(deviceId);
+            showNotification(`Selected device: ${deviceId}`, 'success');
+            console.log(`🎯 Selected device: ${deviceId}`);
+        }
+
+        // Command Management
+        function setCommand(command) {
+            document.getElementById('commandInput').value = command;
+            document.getElementById('commandInput').focus();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendCommand();
+            }
+        }
+
+        async function sendCommand() {
+            const commandInput = document.getElementById('commandInput');
+            const command = commandInput.value.trim();
+            
+            if (!command) {
+                showNotification('Please enter a command', 'error');
+                return;
+            }
+            
+            if (!selectedDevice) {
+                showNotification('Please select a device first', 'error');
+                return;
+            }
+            
+            try {
+                const commandId = generateId();
+                const sendBtn = document.getElementById('sendBtn');
+                
+                // Update button state
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<div class="loading"></div> Sending...';
+                
+                console.log(`📤 Sending command: ${command} to device: ${selectedDevice}`);
+                
+                // Send command to Firebase Realtime Database
+                await rtdb.ref(`zynapse_commands/${commandId}`).set({
+                    id: commandId,
+                    device_id: selectedDevice,
+                    command: command,
+                    status: 'pending',
+                    timestamp: new Date().toISOString(),
+                    sent_from: 'web_interface'
+                });
+                
+                // Add to command history
+                commandHistory.push({
+                    id: commandId,
+                    command: command,
+                    device_id: selectedDevice,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Add processing result to UI immediately
+                addResultToUI({
+                    command_id: commandId,
+                    device_id: selectedDevice,
+                    command: command,
+                    status: 'processing',
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Reset form
+                commandInput.value = '';
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '📤 Send Command';
+                
+                // Update stats
+                stats.totalCommands++;
+                updateStatsDisplay();
+                
+                showNotification(`Command sent to ${selectedDevice}`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Error sending command:', error);
+                showNotification('Failed to send command', 'error');
+                
+                // Reset button
+                const sendBtn = document.getElementById('sendBtn');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '📤 Send Command';
+            }
+        }
+
+        async function emergencyStop() {
+            if (!selectedDevice) {
+                showNotification('Please select a device first', 'error');
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to send emergency stop to device ${selectedDevice}?`)) {
+                return;
+            }
+            
+            try {
+                const commandId = generateId();
+                
+                await rtdb.ref(`zynapse_commands/${commandId}`).set({
+                    id: commandId,
+                    device_id: selectedDevice,
+                    command: 'EMERGENCY_STOP',
+                    status: 'pending',
+                    priority: 'high',
+                    timestamp: new Date().toISOString(),
+                    sent_from: 'web_interface'
+                });
+                
+                showNotification(`Emergency stop sent to ${selectedDevice}`, 'success');
+                console.log(`🛑 Emergency stop sent to device: ${selectedDevice}`);
+                
+            } catch (error) {
+                console.error('❌ Error sending emergency stop:', error);
+                showNotification('Failed to send emergency stop', 'error');
+            }
+        }
+
+        // Result Management
+        function setupResultListener(deviceId) {
+            // Remove existing listener if any
+            if (resultListeners[deviceId]) {
+                resultListeners[deviceId].off();
+            }
+            
+            // Setup new listener for command results
+            const resultRef = rtdb.ref('zynapse_results').orderByChild('device_id').equalTo(deviceId);
+            
+            resultListeners[deviceId] = resultRef.on('child_added', (snapshot) => {
+                const result = snapshot.val();
+                if (result) {
+                    updateResultInUI(result);
+                    console.log(`📥 Received result for command: ${result.command_id}`);
+                }
+            });
+            
+            resultRef.on('child_changed', (snapshot) => {
+                const result = snapshot.val();
+                if (result) {
+                    updateResultInUI(result);
+                }
+            });
+        }
+
+        function addResultToUI(result) {
+            const container = document.getElementById('resultsContainer');
+            
+            // Remove empty state if present
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            const resultElement = document.createElement('div');
+            resultElement.className = `result-item ${result.status}`;
+            resultElement.id = `result-${result.command_id}`;
+            
+            const timestamp = new Date(result.timestamp).toLocaleString();
+            
+            resultElement.innerHTML = `
+                <div class="result-header">
+                    <div>
+                        <div class="result-command">${result.command}</div>
+                        <div class="result-meta">
+                            <span>Device: ${result.device_id}</span>
+                            <span>Time: ${timestamp}</span>
+                            <span>ID: ${result.command_id}</span>
+                        </div>
+                    </div>
+                    <div class="result-status ${result.status}">
+                        ${result.status.toUpperCase()}
+                    </div>
+                </div>
+                ${result.status === 'processing' ? '<div class="result-content">Processing command...</div>' : ''}
+            `;
+            
+            // Insert at top
+            container.insertBefore(resultElement, container.firstChild);
+        }
+
+        function updateResultInUI(result) {
+            const existingElement = document.getElementById(`result-${result.command_id}`);
+            
+            if (!existingElement) {
+                addResultToUI(result);
+                return;
+            }
+            
+            // Update existing result
+            existingElement.className = `result-item ${result.success ? 'success' : 'error'}`;
+            
+            const statusElement = existingElement.querySelector('.result-status');
+            if (statusElement) {
+                statusElement.className = `result-status ${result.success ? 'success' : 'error'}`;
+                statusElement.textContent = result.success ? 'SUCCESS' : 'ERROR';
+            }
+            
+            // Add detailed content
+            let contentHtml = '';
+            
+            if (result.code_info && result.code_info.code) {
+                contentHtml += `
+                    <div class="result-content">
+                        <h4>Generated Code:</h4>
+                        <div class="code-block">${escapeHtml(result.code_info.code)}</div>
+                        
+                        <div style="margin: 16px 0;">
+                            <strong>Explanation:</strong> ${result.code_info.explanation || 'N/A'}<br>
+                            <strong>Safety Level:</strong> ${result.code_info.safety_level || 'N/A'}<br>
+                            <strong>Execution Time:</strong> ${result.metrics?.execution_time || 'N/A'}s
+                        </div>
+                `;
+            }
+            
+            if (result.output && result.output !== 'Command executed successfully') {
+                contentHtml += `
+                        <h4>Output:</h4>
+                        <div class="output-block">${escapeHtml(result.output)}</div>
+                `;
+            }
+            
+            if (result.analysis && result.analysis.suggestions && result.analysis.suggestions.length > 0) {
+                contentHtml += `
+                        <h4>Suggestions:</h4>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                            ${result.analysis.suggestions.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+                        </ul>
+                `;
+            }
+            
+            if (contentHtml) {
+                contentHtml += '</div>';
+                const existingContent = existingElement.querySelector('.result-content');
+                if (existingContent) {
+                    existingContent.innerHTML = contentHtml.substring(28); // Remove opening div
+                } else {
+                    existingElement.innerHTML += contentHtml;
+                }
+            }
+            
+            // Update stats
+            if (result.success) {
+                stats.successfulCommands++;
+            }
+            updateStatsDisplay();
+        }
+
+        // Real-time Listeners
+        function setupRealtimeListeners() {
+            // Listen for device status changes
+            db.collection('zynapse_devices').onSnapshot((snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added' || change.type === 'modified') {
+                        devices[change.doc.id] = {
+                            id: change.doc.id,
+                            ...change.doc.data()
+                        };
+                        displayDevices();
+                    } else if (change.type === 'removed') {
+                        delete devices[change.doc.id];
+                        displayDevices();
+                    }
+                });
+                updateStats();
+            });
+        }
+
+        // Statistics
+        function updateStats() {
+            const deviceList = Object.values(devices);
+            stats.totalDevices = deviceList.length;
+            stats.activeDevices = deviceList.filter(d => 
+                d.status && !['offline', 'error'].includes(d.status)
+            ).length;
+            
+            updateStatsDisplay();
+        }
+
+        function updateStatsDisplay() {
+            document.getElementById('totalDevices').textContent = stats.totalDevices;
+            document.getElementById('activeDevices').textContent = stats.activeDevices;
+            document.getElementById('totalCommands').textContent = stats.totalCommands;
+            
+            const successRate = stats.totalCommands > 0 ? 
+                Math.round((stats.successfulCommands / stats.totalCommands) * 100) : 0;
+            document.getElementById('successRate').textContent = `${successRate}%`;
+        }
+
+        // Utility Functions
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            // Show notification
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            // Hide and remove notification
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Error Handling
+        window.addEventListener('error', function(e) {
+            console.error('💥 Global error:', e.error);
+            showNotification('An unexpected error occurred', 'error');
+        });
+
+        // Connection Status
+        window.addEventListener('online', () => {
+            showNotification('Connection restored', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            showNotification('Connection lost - working offline', 'error');
+        });
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + Enter to send command
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                sendCommand();
+            }
+            
+            // Escape to clear input
+            if (e.key === 'Escape') {
+                document.getElementById('commandInput').value = '';
+                document.getElementById('commandInput').blur();
+            }
+        });
+
+        console.log('🎮 ZYNAPSE Web Controller fully loaded and ready!');
+    </script>
+</body>
+</html>
